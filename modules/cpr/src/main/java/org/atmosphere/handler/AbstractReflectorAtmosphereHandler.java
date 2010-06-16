@@ -95,19 +95,19 @@ public abstract class AbstractReflectorAtmosphereHandler
                 for (String s : (List<String>) o) {
                     if (isUsingStream) {
                         event.getResource().getResponse().getOutputStream().write(s.getBytes());
-                        event.getResource().getResponse().getOutputStream().flush();
+                        //event.getResource().getResponse().getOutputStream().flush();
                     } else {
                         event.getResource().getResponse().getWriter().write(s);
-                        event.getResource().getResponse().getWriter().flush();
+                        //event.getResource().getResponse().getWriter().flush();
                     }
                 }
             } else {
                 if (isUsingStream) {
                     event.getResource().getResponse().getOutputStream().write(o.toString().getBytes());
-                    event.getResource().getResponse().getOutputStream().flush();
+                    //event.getResource().getResponse().getOutputStream().flush();
                 } else {
                     event.getResource().getResponse().getWriter().write(o.toString());
-                    event.getResource().getResponse().getWriter().flush();
+                    //event.getResource().getResponse().getWriter().flush();
                 }
             }
 

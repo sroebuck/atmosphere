@@ -1,0 +1,764 @@
+diff --git a/modules/cpr/src/main/java/org/atmosphere/container/GoogleAppEngineCometSupport.java b/modules/cpr/src/main/java/org/atmosphere/container/GoogleAppEngineCometSupport.java
+index 3ca9d3e..2cc4f41 100755
+--- a/modules/cpr/src/main/java/org/atmosphere/container/GoogleAppEngineCometSupport.java
++++ b/modules/cpr/src/main/java/org/atmosphere/container/GoogleAppEngineCometSupport.java
+@@ -91,7 +91,7 @@ public class GoogleAppEngineCometSupport extends BlockingIOCometSupport {
+                 latch.await(30000, TimeUnit.MILLISECONDS);
+             }
+         } catch (Throwable ex) {
+-            LoggerUtils.getLogger().log(Level.SEVERE, "Unable to resume the suspended connection");
++            LoggerUtils.getLogger().log(Level.WARNING, "Unable to resume the suspended connection", ex);
+         } finally {
+             timedout(req, res);
+         }
+diff --git a/modules/cpr/src/main/java/org/atmosphere/cpr/AsynchronousProcessor.java b/modules/cpr/src/main/java/org/atmosphere/cpr/AsynchronousProcessor.java
+index 1eda12f..2d47ce6 100755
+--- a/modules/cpr/src/main/java/org/atmosphere/cpr/AsynchronousProcessor.java
++++ b/modules/cpr/src/main/java/org/atmosphere/cpr/AsynchronousProcessor.java
+@@ -114,7 +114,7 @@ abstract public class AsynchronousProcessor implements CometSupport<AtmosphereRe
+      * @return true if supported
+      */
+     protected boolean supportSession() {
+-        return config.isSupportSession();
++        return false;
+     }
+ 
+     /**
+diff --git a/modules/cpr/src/main/java/org/atmosphere/cpr/Broadcaster.java b/modules/cpr/src/main/java/org/atmosphere/cpr/Broadcaster.java
+index 91fe29e..63aaa1f 100644
+--- a/modules/cpr/src/main/java/org/atmosphere/cpr/Broadcaster.java
++++ b/modules/cpr/src/main/java/org/atmosphere/cpr/Broadcaster.java
+@@ -38,7 +38,9 @@
+ 
+ package org.atmosphere.cpr;
+ 
++import java.util.Collection;
+ import java.util.Iterator;
++import java.util.List;
+ import java.util.Set;
+ import java.util.concurrent.ExecutorService;
+ import java.util.concurrent.Future;
+@@ -46,8 +48,8 @@ import java.util.concurrent.TimeUnit;
+ 
+ /**
+  * A Broadcaster is responsible for delivering messages to its subscribed
+- * {@link AtmosphereResource}, which are representing a suspended response.
+- * {@link AtmosphereResource} can be added using {@link Broadcaster#addAtmosphereResource},
++ * {@link AtmosphereResource<?,?>}, which are representing a suspended response.
++ * {@link AtmosphereResource<?,?>} can be added using {@link Broadcaster#addAtmosphereResource},
+  * so when {@link #broadcast(java.lang.Object)} execute,
+  * {@link AtmosphereHandler#onStateChange(org.atmosphere.cpr.AtmosphereResourceEvent)} will
+  * be invoked and the suspended connection will have a chance to write the
+@@ -60,7 +62,7 @@ import java.util.concurrent.TimeUnit;
+  * the  operation has completed.
+  * <br>
+  * One final word on Broadcaster: by default, a Broadcaster will broadcast using
+- * all {@link AtmosphereResource} on which the response has been suspended, e.g. {AtmosphereResource#suspend()}
++ * all {@link AtmosphereResource<?,?>} on which the response has been suspended, e.g. {AtmosphereResource<?,?>#suspend()}
+  * has been invoked. This behavior is configurable and you can configure it by invoking the
+  * {@link Broadcaster#setScope(org.atmosphere.cpr.Broadcaster.SCOPE)} ):<ul>
+  * <li>REQUEST: broadcast events only to the AtmosphereResourceEvent associated with the current request.</li>
+@@ -135,43 +137,43 @@ public interface Broadcaster {
+ 
+     /**
+      * Broadcast the {@link Object} to all suspended response, e.g. invoke
+-     * {@link AtmosphereHandler#onStateChange} with an instance of {@link AtmosphereResource}, representing
++     * {@link AtmosphereHandler#onStateChange} with an instance of {@link AtmosphereResource<?,?>}, representing
+      * a single suspended response..
+      *
+      * @param o        and {@link Object} to be broadcasted.
+-     * @param resource an {@link AtmosphereResource}
++     * @param resource an {@link AtmosphereResource<?,?>}
+      * @return a {@link Future} that can be used to synchronize using the {@link Future#get()}
+      */
+-    public Future<Object> broadcast(Object o, AtmosphereResource resource);
++    public Future<Object> broadcast(Object o, AtmosphereResource<?,?> resource);
+ 
+     /**
+      * Broadcast the {@link Object} to all suspended response, e.g. invoke
+-     * {@link AtmosphereHandler#onStateChange} with a {@link Set} of  {@link AtmosphereResource},
++     * {@link AtmosphereHandler#onStateChange} with a {@link Set} of  {@link AtmosphereResource<?,?>},
+      * representing a set of {@link AtmosphereHandler}.
+      *
+      * @param o      and {@link Object} to be broadcasted.
+-     * @param subset a Set of {@link AtmosphereResource}
++     * @param subset a Set of {@link AtmosphereResource<?,?>}
+      * @return a {@link Future} that can be used to synchronize using the {@link Future#get()}
+      */
+-    public Future<Object> broadcast(Object o, Set<AtmosphereResource> subset);
++    public Future<Object> broadcast(Object o, Set<AtmosphereResource<?,?>> subset);
+ 
+     /**
+-     * Add a {@link AtmosphereResource} to the list of item to be notified when
++     * Add a {@link AtmosphereResource<?,?>} to the list of item to be notified when
+      * the {@link Broadcaster#broadcast} is invoked.
+      *
+-     * @param resource an {@link AtmosphereResource}
+-     * @return {@link AtmosphereResource} if added, or null if it was already there.
++     * @param resource an {@link AtmosphereResource<?,?>}
++     * @return {@link AtmosphereResource<?,?>} if added, or null if it was already there.
+      */
+-    public AtmosphereResource addAtmosphereResource(AtmosphereResource resource);
++    public AtmosphereResource<?,?> addAtmosphereResource(AtmosphereResource<?,?> resource);
+ 
+     /**
+-     * Remove a {@link AtmosphereResource} from the list of item to be notified when
++     * Remove a {@link AtmosphereResource<?,?>} from the list of item to be notified when
+      * the {@link Broadcaster#broadcast} is invoked.
+      *
+-     * @param resource an {@link AtmosphereResource}
+-     * @return {@link AtmosphereResource} if removed, or null if it was not.
++     * @param resource an {@link AtmosphereResource<?,?>}
++     * @return {@link AtmosphereResource<?,?>} if removed, or null if it was not.
+      */
+-    public AtmosphereResource removeAtmosphereResource(AtmosphereResource resource);
++    public AtmosphereResource<?,?> removeAtmosphereResource(AtmosphereResource<?,?> resource);
+ 
+     /**
+      * Set the {@link BroadcasterConfig} instance.
+@@ -193,12 +195,12 @@ public interface Broadcaster {
+     public void destroy();
+ 
+     /**
+-     * Return an {@link Iterator} of {@link AtmosphereResource}.
++     * Return an {@link List} of {@link AtmosphereResource<?,?>}.
+      *
+-     * @return {@link Iterator} of {@link AtmosphereResource} associated with this {@link Broadcaster}.
+-     * @see org.atmosphere.cpr.Broadcaster#addAtmosphereResource(AtmosphereResource)
++     * @return {@link List} of {@link AtmosphereResource<?,?>} associated with this {@link Broadcaster}.
++     * @see org.atmosphere.cpr.Broadcaster#addAtmosphereResource(AtmosphereResource<?,?>)
+      */
+-    public Iterator<AtmosphereResource> getAtmosphereResources();
++    public Collection<AtmosphereResource<?,?>> getAtmosphereResources();
+ 
+     /**
+      * Set the scope.
+@@ -229,7 +231,7 @@ public interface Broadcaster {
+     public String getID();
+ 
+     /**
+-     * Resume all suspended responses ({@link AtmosphereResource}) added via
++     * Resume all suspended responses ({@link AtmosphereResource<?,?>}) added via
+      * {@link Broadcaster#addAtmosphereResource}.
+      */
+     public void resumeAll();
+diff --git a/modules/cpr/src/main/java/org/atmosphere/cpr/DefaultBroadcaster.java b/modules/cpr/src/main/java/org/atmosphere/cpr/DefaultBroadcaster.java
+index a49f55a..e8b0c58 100644
+--- a/modules/cpr/src/main/java/org/atmosphere/cpr/DefaultBroadcaster.java
++++ b/modules/cpr/src/main/java/org/atmosphere/cpr/DefaultBroadcaster.java
+@@ -43,6 +43,8 @@ import org.atmosphere.util.LoggerUtils;
+ 
+ import javax.servlet.http.HttpServletRequest;
+ import java.io.IOException;
++import java.util.Collection;
++import java.util.Collections;
+ import java.util.Iterator;
+ import java.util.List;
+ import java.util.Set;
+@@ -67,8 +69,8 @@ import java.util.logging.Level;
+  */
+ public class DefaultBroadcaster implements Broadcaster {
+ 
+-    protected final ConcurrentLinkedQueue<AtmosphereResource> events =
+-            new ConcurrentLinkedQueue<AtmosphereResource>();
++    protected final Collection<AtmosphereResource<?,?>> events =
++            new ConcurrentLinkedQueue<AtmosphereResource<?,?>>();
+     protected BroadcasterConfig bc = AtmosphereServlet.getBroadcasterConfig();
+     protected final BlockingQueue<Entry> messages =
+             new LinkedBlockingQueue<Entry>();
+@@ -111,8 +113,8 @@ public class DefaultBroadcaster implements Broadcaster {
+     /**
+      * {@inheritDoc}
+      */
+-    public Iterator<AtmosphereResource> getAtmosphereResources() {
+-        return events.iterator();
++    public Collection<AtmosphereResource<?,?>> getAtmosphereResources() {
++        return Collections.unmodifiableCollection(events);
+     }
+ 
+     /**
+@@ -161,7 +163,7 @@ public class DefaultBroadcaster implements Broadcaster {
+      * {@inheritDoc}
+      */
+     public void resumeAll() {
+-        for (AtmosphereResource r : events) {
++        for (AtmosphereResource<?,?> r : events) {
+             r.resume();
+         }
+     }
+@@ -170,12 +172,12 @@ public class DefaultBroadcaster implements Broadcaster {
+ 
+         public Object message;
+         public Object eventsToPush;
+-        public Future f;
++        public Future<?> future;
+ 
+-        public Entry(Object message, Object eventsToPush, Future f) {
++        public Entry(Object message, Object eventsToPush, Future future) {
+             this.message = message;
+             this.eventsToPush = eventsToPush;
+-            this.f = f;
++            this.future = future;
+         }
+     }
+ 
+@@ -205,10 +207,10 @@ public class DefaultBroadcaster implements Broadcaster {
+                         LoggerUtils.getLogger().log(Level.SEVERE, null, ex);
+                     } finally {
+                         if (msg != null) {
+-                            if (msg.f instanceof BroadcasterFuture) {
+-                                ((BroadcasterFuture) msg.f).done();
++                            if (msg.future instanceof BroadcasterFuture) {
++                                ((BroadcasterFuture) msg.future).done();
+                             } else {
+-                                msg.f.cancel(true);
++                                msg.future.cancel(true);
+                             }
+                         }
+                     }
+@@ -223,8 +225,8 @@ public class DefaultBroadcaster implements Broadcaster {
+             Iterator<Entry> i = delayedBroadcast.iterator();
+             while (i.hasNext()) {
+                 Entry e = i.next();
+-                if (!(e.f instanceof BroadcasterFuture)) {
+-                    e.f.cancel(true);
++                if (!(e.future instanceof BroadcasterFuture)) {
++                    e.future.cancel(true);
+                 }
+                 try {
+                     // Append so we do a single flush
+@@ -237,8 +239,8 @@ public class DefaultBroadcaster implements Broadcaster {
+                     }
+                 } finally {
+                     i.remove();
+-                    if (e.f instanceof BroadcasterFuture) {
+-                        ((BroadcasterFuture) e.f).done();
++                    if (e.future instanceof BroadcasterFuture) {
++                        ((BroadcasterFuture) e.future).done();
+                     }
+                 }
+             }
+@@ -249,20 +251,20 @@ public class DefaultBroadcaster implements Broadcaster {
+         }
+ 
+         if (msg.eventsToPush == null) {
+-            for (AtmosphereResource r : events) {
++            for (AtmosphereResource<?,?> r : events) {
+                 push(r, msg.message);
+             }
+-        } else if (msg.eventsToPush instanceof AtmosphereResource) {
+-            push((AtmosphereResource) msg.eventsToPush, msg.message);
++        } else if (msg.eventsToPush instanceof AtmosphereResource<?,?>) {
++            push((AtmosphereResource<?,?>) msg.eventsToPush, msg.message);
+         } else if (msg.eventsToPush instanceof Set) {
+-            Set<AtmosphereResource> sub = (Set<AtmosphereResource>) msg.eventsToPush;
+-            for (AtmosphereResource r : sub) {
++            Set<AtmosphereResource<?,?>> sub = (Set<AtmosphereResource<?,?>>) msg.eventsToPush;
++            for (AtmosphereResource<?,?> r : sub) {
+                 push(r, msg.message);
+             }
+         }
+     }
+ 
+-    protected void push(AtmosphereResource r, Object msg) {
++    protected void push(AtmosphereResource<?,?> r, Object msg) {
+         AtmosphereResourceEvent e = null;
+         synchronized (r) {
+             if (!r.getAtmosphereResourceEvent().isSuspended())
+@@ -284,14 +286,14 @@ public class DefaultBroadcaster implements Broadcaster {
+         }
+     }
+ 
+-    protected void checkCachedAndPush(AtmosphereResource r, AtmosphereResourceEvent e) {
++    protected void checkCachedAndPush(AtmosphereResource<?,?> r, AtmosphereResourceEvent e) {
+         retrieveTrackedBroadcast(r, e);
+         if (e.getMessage() instanceof List && !((List) e.getMessage()).isEmpty()) {
+             broadcast(r, e);
+         }
+     }
+ 
+-    protected boolean retrieveTrackedBroadcast(final AtmosphereResource r, final AtmosphereResourceEvent e) {
++    protected boolean retrieveTrackedBroadcast(final AtmosphereResource<?,?> r, final AtmosphereResourceEvent e) {
+         List<Object> missedMsg = broadcasterCache.retrieveFromCache(r);
+         if (!missedMsg.isEmpty()) {
+             e.setMessage(missedMsg);
+@@ -300,11 +302,11 @@ public class DefaultBroadcaster implements Broadcaster {
+         return false;
+     }
+ 
+-    protected void trackBroadcastMessage(final AtmosphereResource r, Object msg) {
++    protected void trackBroadcastMessage(final AtmosphereResource<?,?> r, Object msg) {
+         broadcasterCache.addToCache(r, msg);
+     }
+ 
+-    protected void broadcast(final AtmosphereResource r, final AtmosphereResourceEvent e) {
++    protected void broadcast(final AtmosphereResource<?,?> r, final AtmosphereResourceEvent e) {
+         try {
+             r.getAtmosphereConfig().getAtmosphereHandler(this).onStateChange(e);
+         } catch (IOException ex) {
+@@ -314,7 +316,7 @@ public class DefaultBroadcaster implements Broadcaster {
+         }                                                                               
+     }
+ 
+-    protected void onException(Throwable t, AtmosphereResource r) {
++    protected void onException(Throwable t, AtmosphereResource<?,?> r) {
+         if (LoggerUtils.getLogger().isLoggable(Level.FINE)) {
+             LoggerUtils.getLogger().log(Level.FINE, "", t);
+         }
+@@ -355,7 +357,7 @@ public class DefaultBroadcaster implements Broadcaster {
+     /**
+      * {@inheritDoc}
+      */
+-    public Future<Object> broadcast(Object msg, AtmosphereResource r) {
++    public Future<Object> broadcast(Object msg, AtmosphereResource<?,?> r) {
+         start();
+         msg = filter(msg);
+         if (msg == null) return null;
+@@ -368,7 +370,7 @@ public class DefaultBroadcaster implements Broadcaster {
+     /**
+      * {@inheritDoc}
+      */
+-    public Future<Object> broadcast(Object msg, Set<AtmosphereResource> subset) {
++    public Future<Object> broadcast(Object msg, Set<AtmosphereResource<?,?>> subset) {
+         start();
+         msg = filter(msg);
+         if (msg == null) return null;
+@@ -381,7 +383,7 @@ public class DefaultBroadcaster implements Broadcaster {
+     /**
+      * {@inheritDoc}
+      */
+-    public AtmosphereResource addAtmosphereResource(AtmosphereResource r) {
++    public AtmosphereResource<?,?> addAtmosphereResource(AtmosphereResource<?,?> r) {
+         if (events.contains(r)) {
+             return r;
+         }
+@@ -391,7 +393,7 @@ public class DefaultBroadcaster implements Broadcaster {
+             BroadcasterFactory.getDefault().add(this, name);
+         }
+ 
+-        events.offer(r);
++        events.add(r);
+         checkCachedAndPush(r, r.getAtmosphereResourceEvent());
+         return r;
+     }
+@@ -399,7 +401,7 @@ public class DefaultBroadcaster implements Broadcaster {
+     /**
+      * {@inheritDoc}
+      */
+-    public AtmosphereResource removeAtmosphereResource(AtmosphereResource r) {
++    public AtmosphereResource<?,?> removeAtmosphereResource(AtmosphereResource r) {
+         if (!events.contains(r)) {
+             return null;
+         }
+@@ -413,15 +415,6 @@ public class DefaultBroadcaster implements Broadcaster {
+     }
+ 
+     /**
+-     * Return the list of AtmosphereResource registered with this Broadcaster
+-     *
+-     * @return
+-     */
+-    protected ConcurrentLinkedQueue<AtmosphereResource> atmosphereResources() {
+-        return events;
+-    }
+-
+-    /**
+      * Set the {@link BroadcasterConfig} instance.
+      *
+      * @param bc
+@@ -464,7 +457,7 @@ public class DefaultBroadcaster implements Broadcaster {
+                     return msg;
+                 }
+             }, delay, t);
+-            e.f = f;
++            e.future = f;
+         }
+         delayedBroadcast.offer(e);
+         return f;
+diff --git a/modules/cpr/src/main/java/org/atmosphere/util/SimpleBroadcaster.java b/modules/cpr/src/main/java/org/atmosphere/util/SimpleBroadcaster.java
+index 66a61b4..a6a994b 100755
+--- a/modules/cpr/src/main/java/org/atmosphere/util/SimpleBroadcaster.java
++++ b/modules/cpr/src/main/java/org/atmosphere/util/SimpleBroadcaster.java
+@@ -91,7 +91,7 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
+      * {@inheritDoc}
+      */
+     @Override
+-    public BroadcasterFuture<Object> broadcast(Object msg, AtmosphereResource r) {
++    public BroadcasterFuture<Object> broadcast(Object msg, AtmosphereResource<?,?> r) {
+         msg = filter(msg);
+         if (msg == null) return null;
+         BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(msg);
+@@ -104,7 +104,7 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
+      * {@inheritDoc}
+      */
+     @Override
+-    public BroadcasterFuture<Object> broadcast(Object msg, Set<AtmosphereResource> subset) {
++    public BroadcasterFuture<Object> broadcast(Object msg, Set<AtmosphereResource<?,?>> subset) {
+         msg = filter(msg);
+         if (msg == null) return null;
+ 
+diff --git a/modules/cpr/src/main/java/org/atmosphere/util/gae/GAEDefaultBroadcaster.java b/modules/cpr/src/main/java/org/atmosphere/util/gae/GAEDefaultBroadcaster.java
+index c9bebf1..8f7f45b 100755
+--- a/modules/cpr/src/main/java/org/atmosphere/util/gae/GAEDefaultBroadcaster.java
++++ b/modules/cpr/src/main/java/org/atmosphere/util/gae/GAEDefaultBroadcaster.java
+@@ -95,7 +95,7 @@ public class GAEDefaultBroadcaster extends DefaultBroadcaster {
+      * {@inheritDoc}
+      */
+     @Override
+-    public BroadcasterFuture<Object> broadcast(Object msg, Set<AtmosphereResource> subset) {
++    public BroadcasterFuture<Object> broadcast(Object msg, Set<AtmosphereResource<?,?>> subset) {
+         msg = filter(msg);
+         if (msg == null) return null;
+         BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(msg);
+diff --git a/modules/jersey/src/main/java/org/atmosphere/jersey/AtmosphereFilter.java b/modules/jersey/src/main/java/org/atmosphere/jersey/AtmosphereFilter.java
+index b0f9e04..1723f5f 100755
+--- a/modules/jersey/src/main/java/org/atmosphere/jersey/AtmosphereFilter.java
++++ b/modules/jersey/src/main/java/org/atmosphere/jersey/AtmosphereFilter.java
+@@ -71,6 +71,7 @@ import javax.ws.rs.core.UriInfo;
+ import java.io.IOException;
+ import java.lang.annotation.Annotation;
+ import java.util.ArrayList;
++import java.util.Collection;
+ import java.util.Iterator;
+ import java.util.LinkedList;
+ import java.util.List;
+@@ -110,8 +111,8 @@ public class AtmosphereFilter implements ResourceFilterFactory {
+ 
+     private @Context UriInfo uriInfo;
+ 
+-    private final ConcurrentHashMap<String, AtmosphereResource> resumeCandidates =
+-            new ConcurrentHashMap<String, AtmosphereResource>();
++    private final ConcurrentHashMap<String, AtmosphereResource<HttpServletRequest,HttpServletResponse>> resumeCandidates =
++            new ConcurrentHashMap<String, AtmosphereResource<HttpServletRequest,HttpServletResponse>>();
+ 
+     private class Filter implements ResourceFilter, ContainerResponseFilter {
+ 
+@@ -282,7 +283,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
+         }
+ 
+         void configureResumeOnBroadcast(Broadcaster b) {
+-            Iterator<AtmosphereResource> i = b.getAtmosphereResources();
++            Iterator<AtmosphereResource<?,?>> i = b.getAtmosphereResources().iterator();
+             while (i.hasNext()) {
+                 HttpServletRequest r = (HttpServletRequest) i.next().getRequest();
+                 r.setAttribute(AtmosphereServlet.RESUME_ON_BROADCAST, new Boolean(true));
+diff --git a/modules/jersey/src/main/java/org/atmosphere/jersey/JerseyBroadcaster.java b/modules/jersey/src/main/java/org/atmosphere/jersey/JerseyBroadcaster.java
+index d960197..3ce1e88 100644
+--- a/modules/jersey/src/main/java/org/atmosphere/jersey/JerseyBroadcaster.java
++++ b/modules/jersey/src/main/java/org/atmosphere/jersey/JerseyBroadcaster.java
+@@ -62,7 +62,7 @@ public class JerseyBroadcaster extends DefaultBroadcaster {
+     }
+ 
+     @Override
+-    protected void broadcast(final AtmosphereResource r, final AtmosphereResourceEvent e) {
++    protected void broadcast(final AtmosphereResource<?,?> r, final AtmosphereResourceEvent e) {
+         JerseyBroadcasterUtil.broadcast(r, e);
+     }
+ 
+diff --git a/modules/jersey/src/main/java/org/atmosphere/jersey/util/JerseyBroadcasterUtil.java b/modules/jersey/src/main/java/org/atmosphere/jersey/util/JerseyBroadcasterUtil.java
+index 34caf6d..7ab7108 100644
+--- a/modules/jersey/src/main/java/org/atmosphere/jersey/util/JerseyBroadcasterUtil.java
++++ b/modules/jersey/src/main/java/org/atmosphere/jersey/util/JerseyBroadcasterUtil.java
+@@ -26,7 +26,7 @@ import java.util.logging.Level;
+  */
+ public final class JerseyBroadcasterUtil {
+ 
+-    public final static void broadcast(final AtmosphereResource r, final AtmosphereResourceEvent e) {
++    public final static void broadcast(final AtmosphereResource<?,?> r, final AtmosphereResourceEvent e) {
+         HttpServletRequest res = (HttpServletRequest) r.getRequest();
+ 
+         try {
+@@ -68,7 +68,7 @@ public final class JerseyBroadcasterUtil {
+                 String uuid = (String) res.getAttribute(AtmosphereFilter.RESUME_UUID);
+                 if (uuid != null) {
+                     if (res.getAttribute(AtmosphereFilter.RESUME_CANDIDATES) != null) {
+-                        ((ConcurrentHashMap<String, AtmosphereResource>) res.getAttribute(AtmosphereFilter.RESUME_CANDIDATES)).remove(uuid);
++                        ((ConcurrentHashMap<String, AtmosphereResource<?,?>>) res.getAttribute(AtmosphereFilter.RESUME_CANDIDATES)).remove(uuid);
+                     }
+                 }
+                 r.resume();
+@@ -76,7 +76,7 @@ public final class JerseyBroadcasterUtil {
+         }
+     }
+ 
+-    final static void onException(Throwable t, AtmosphereResource r) {
++    final static void onException(Throwable t, AtmosphereResource<?,?> r) {
+         if (LoggerUtils.getLogger().isLoggable(Level.FINE)) {
+             LoggerUtils.getLogger().log(Level.FINE, "", t);
+         }
+diff --git a/modules/jersey/src/main/java/org/atmosphere/jersey/util/JerseySimpleBroadcaster.java b/modules/jersey/src/main/java/org/atmosphere/jersey/util/JerseySimpleBroadcaster.java
+index ee9b6e6..ffcf412 100755
+--- a/modules/jersey/src/main/java/org/atmosphere/jersey/util/JerseySimpleBroadcaster.java
++++ b/modules/jersey/src/main/java/org/atmosphere/jersey/util/JerseySimpleBroadcaster.java
+@@ -59,7 +59,7 @@ public class JerseySimpleBroadcaster extends SimpleBroadcaster {
+     }
+ 
+     @Override
+-    protected void broadcast(final AtmosphereResource r, final AtmosphereResourceEvent e) {
++    protected void broadcast(final AtmosphereResource<?,?> r, final AtmosphereResourceEvent e) {
+         JerseyBroadcasterUtil.broadcast(r, e);
+     }
+ }
+\ No newline at end of file
+diff --git a/samples/appengine-chat/src/main/webapp/WEB-INF/appengine-web.xml b/samples/appengine-chat/src/main/webapp/WEB-INF/appengine-web.xml
+index 20245dc..4bdca54 100755
+--- a/samples/appengine-chat/src/main/webapp/WEB-INF/appengine-web.xml
++++ b/samples/appengine-chat/src/main/webapp/WEB-INF/appengine-web.xml
+@@ -1,8 +1,8 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <appengine-web-app xmlns="http://appengine.google.com/ns/1.0">
+-    <application></application>
++    <application>atmosphere-pubsub</application>
+     <version>1</version>
+-    <sessions-enabled>true</sessions-enabled>
++    <sessions-enabled>false</sessions-enabled>
+     <system-properties>
+         <property name="java.util.logging.config.file" value="WEB-INF/logging.properties" />
+     </system-properties>
+diff --git a/samples/appengine-pubsub/src/main/java/org/atmosphere/samples/pubsub/PubSub.java b/samples/appengine-pubsub/src/main/java/org/atmosphere/samples/pubsub/PubSub.java
+index 3926bc0..3ff7102 100644
+--- a/samples/appengine-pubsub/src/main/java/org/atmosphere/samples/pubsub/PubSub.java
++++ b/samples/appengine-pubsub/src/main/java/org/atmosphere/samples/pubsub/PubSub.java
+@@ -37,202 +37,55 @@
+ package org.atmosphere.samples.pubsub;
+ 
+ import org.atmosphere.annotation.Broadcast;
+-import org.atmosphere.annotation.Cluster;
+-import org.atmosphere.annotation.Schedule;
+ import org.atmosphere.annotation.Suspend;
+-import org.atmosphere.cpr.AtmosphereResourceEventListener;
+ import org.atmosphere.cpr.Broadcaster;
+-import org.atmosphere.cpr.BroadcasterFactory;
+ import org.atmosphere.jersey.Broadcastable;
+-import org.atmosphere.jersey.JerseyBroadcaster;
+-import org.atmosphere.util.StringFilterAggregator;
++import org.atmosphere.util.LoggerUtils;
+ 
+-import javax.annotation.PreDestroy;
+-import javax.ws.rs.FormParam;
+ import javax.ws.rs.GET;
+-import javax.ws.rs.POST;
+ import javax.ws.rs.Path;
+ import javax.ws.rs.PathParam;
+ import javax.ws.rs.Produces;
+-import java.util.concurrent.Executors;
+-import java.util.concurrent.TimeUnit;
++import java.util.logging.Level;
+ 
+ /**
+  * Simple PubSub resource that demonstrate many functionality supported by
+  * Atmosphere.
+- * 
++ *
+  * @author Jeanfrancois Arcand
+  */
+ @Path("/{topic}")
+ @Produces("text/plain;charset=ISO-8859-1")
+-public class PubSub {
+-
+-    @PreDestroy
+-    public void destroy(){
+-        System.out.println("Testing the @PreDestroy");
+-    }
+-    
+-    /**
+-     * Inject a {@link org.atmosphere.cpr.Broadcaster} based on @Path
+-     */
+-    private @PathParam("topic") Broadcaster topic;
++public class PubSub
++{
+ 
+-    /**
+-     * Suspend the response, and register a {@link org.atmosphere.cpr.AtmosphereResourceEventListener}
+-     * that get notified when events occurs like client disconnection, broadcast
+-     * or when the response get resumed.
+-     * @return A {@link Broadcastable} used to broadcast events.
+-     */
++    @Suspend (resumeOnBroadcast = true)
+     @GET
+-    @Suspend(listeners={EventsLogger.class})
+-    public Broadcastable subscribe() {
+-        return new Broadcastable(topic);
++    @Path("/{topic}")
++    @Produces("text/plain;charset=ISO-8859-1")
++    public Broadcastable subscribe(@PathParam("topic") Broadcaster topic)
++    {
++        LoggerUtils.getLogger().log(Level.INFO,"subscribe");
++        return new Broadcastable("", topic);
+     }
+ 
+-    /**
+-     * Suspend the response, and tell teh framework to resume the response                                                                                                                     \
+-     * when the first @Broadcast operation occurs.
+-     * @return A {@link Broadcastable} used to broadcast events.
+-     */
+     @GET
+-    @Suspend(resumeOnBroadcast=true,listeners={EventsLogger.class})
+-    @Path("subscribeAndResume")
+-    public Broadcastable subscribeAndResume() {
+-        return new Broadcastable(topic);
+-    }
+-
+-
+-    /**                                                                               '
+-     * Broadcast XML data using JAXB
+-     * @param message A String from an HTML form
+-     * @return A {@link Broadcastable} used to broadcast events.
+-     */
+-    @POST
+-    @Produces("application/xml")
++    @Path("/{topic}/{message}")
++    @Produces("text/plain;charset=ISO-8859-1")
+     @Broadcast
+-    public Broadcastable publishWithXML(@FormParam("message") String message){
+-        return new Broadcastable(new JAXBBean(message),topic);
+-    }
+-
+-    /**
+-     * Broadcast messahge to this server and also to other server using JGroups
+-     * @param message A String from an HTML form
+-     * @return A {@link Broadcastable} used to broadcast events.
+-     */
+-    @POST
+-    @Broadcast
+-    public Broadcastable publish(@FormParam("message") String message){
+-        return broadcast(message);
+-    }
+-
+-    /**
+-     * Retain Broadcast events until we have enough data. See the {@link org.atmosphere.util.StringFilterAggregator}
+-     * to configure the amount of data buffered before the events gets written
+-     * back to the set of suspended response.
+-     * @param message A String from an HTML form
+-     * @return A {@link Broadcastable} used to broadcast events.
+-     */
+-    @POST
+-    @Broadcast(value={StringFilterAggregator.class})
+-    @Path("aggregate")
+-    public Broadcastable aggregate(@FormParam("message") String message){
+-        return broadcast(message);
+-    }
+-
+-    /**
+-     * Execute periodic {@link org.atmosphere.cpr.Broadcaster#broadcast(Object)} operation and
+-     * resume the suspended connection after the first broadcast operation.
+-     *
+-     * @param message A String from an HTML form
+-     * @return A {@link Broadcastable} used to broadcast events.
+-     */
+-    @Schedule(period=5, resumeOnBroadcast=true)
+-    @POST
+-    @Path("scheduleAndResume")
+-    public Broadcastable scheduleAndResume(@FormParam("message") String message){
+-        return broadcast(message);
++    public Broadcastable publish(@PathParam("topic") Broadcaster topic,
++                                 @PathParam("message") String message)
++    {
++        LoggerUtils.getLogger().log(Level.INFO,"broadcast: " + topic.getAtmosphereResources());
++        return new Broadcastable(message, topic);
+     }
+ 
+-    /**
+-     * Wait 5 seconds and then execute periodic {@link org.atmosphere.cpr.Broadcaster#broadcast(Object)}
+-     * operations.
+-     *
+-     * @param message A String from an HTML form
+-     * @return A {@link Broadcastable} used to broadcast events.
+-     */
+-    @Schedule(period=10, waitFor=5)
+-    @POST
+-    @Path("delaySchedule")
+-    public Broadcastable delaySchedule(@FormParam("message") String message){
+-        return broadcast(message);
+-    }
+-
+-    /**
+-     * Execute periodic {@link org.atmosphere.cpr.Broadcaster#broadcast(Object)} operation.
+-     *
+-     * @param message A String from an HTML form
+-     * @return A {@link Broadcastable} used to broadcast events.
+-     */
+-    @Schedule(period=5)
+-    @POST
+-    @Path("schedule")
+-    public Broadcastable schedule(@FormParam("message") String message){
+-        return broadcast(message);
+-    }
+-
+-    /**
+-     * Delay for 5 seconds the executionof {@link org.atmosphere.cpr.Broadcaster#broadcast(Object)} operation
+-     *
+-     * @param message A String from an HTML form
+-     * @return A {@link Broadcastable} used to broadcast events.
+-     */
+-    @Broadcast(delay=5)
+-    @POST
+-    @Path("delay")
+-    public Broadcastable delayPublish(@FormParam("message") String message){
+-        return broadcast(message);
+-    }
+-
+-    @Broadcast(delay=5, resumeOnBroadcast=true)
+-    @POST
+-    @Path("delayAndResume")
+-    public Broadcastable delayPublishAndResume(@FormParam("message") String message){
+-        return broadcast(message);
+-    }
+-
+-    /**
+-     * Buffer the first broadcast events until the second one happens.
+-     *
+-     * @param message A String from an HTML form
+-     * @return A {@link Broadcastable} used to broadcast events.
+-     */
+-    @Path("buffer")
+-    @POST
+-    @Broadcast(delay=0)
+-    public Broadcastable buffer(@FormParam("message") String message){
+-        return broadcast(message);
+-    }
+-
+-    /**
+-     * Use the {@link org.atmosphere.cpr.Broadcaster#delayBroadcast(Object)} directly
+-     * instead of using the annotation.
+-     *
+-     * @param message A String from an HTML form
+-     * @return A {@link Broadcastable} used to broadcast events.
+-     */
+-    @POST
+-    @Path("broadcast")
+-    public String manualDelayBroadcast(@FormParam("message") String message){
+-        topic.delayBroadcast(message, 10, TimeUnit.SECONDS);
+-        return message;
++    @GET
++    @Path("/hello")
++    @Produces("text/plain;charset=ISO-8859-1")
++    public String hello()
++    {
++        return "Hello test";
+     }
+ 
+-    /**
+-     * Create a new {@link Broadcastable}.
+-     * @param m
+-     * @return
+-     */
+-    Broadcastable broadcast(String m){
+-       return new Broadcastable(m + "\n", topic);
+-    }
+ } 
+diff --git a/samples/appengine-pubsub/src/main/webapp/WEB-INF/appengine-web.xml b/samples/appengine-pubsub/src/main/webapp/WEB-INF/appengine-web.xml
+index 20245dc..62098bf 100644
+--- a/samples/appengine-pubsub/src/main/webapp/WEB-INF/appengine-web.xml
++++ b/samples/appengine-pubsub/src/main/webapp/WEB-INF/appengine-web.xml
+@@ -1,8 +1,8 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <appengine-web-app xmlns="http://appengine.google.com/ns/1.0">
+-    <application></application>
++    <application>atmosphereframeworkcomet</application>
+     <version>1</version>
+-    <sessions-enabled>true</sessions-enabled>
++    <sessions-enabled>false</sessions-enabled>
+     <system-properties>
+         <property name="java.util.logging.config.file" value="WEB-INF/logging.properties" />
+     </system-properties>

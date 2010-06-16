@@ -1,0 +1,80 @@
+10
+
+dir
+1083
+https://atmosphere.dev.java.net/svn/atmosphere/trunk/atmosphere/modules
+https://atmosphere.dev.java.net/svn/atmosphere
+
+
+
+2010-04-29T02:45:54.088005Z
+1081
+jfarcand
+has-props
+
+
+
+
+
+
+
+
+
+
+
+
+
+08ad846b-4e43-0410-bdf7-9ac5d0a226d6
+
+compat-jbossweb
+dir
+
+jersey
+dir
+
+cpr
+dir
+
+compat-tomcat
+dir
+
+pom.xml
+file
+
+
+
+
+2010-04-30T01:30:05.000000Z
+eac5545df1f5b698a0593bdb03370ac4
+2010-04-20T23:50:43.351327Z
+1034
+jfarcand
+has-props
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+936
+
+compat-weblogic
+dir
+
+annotations
+dir
+

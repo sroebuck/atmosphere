@@ -166,20 +166,20 @@ public class AtmosphereResourceImpl implements
             if (upgrade != null && upgrade.equalsIgnoreCase("Upgrade")) {
                 if (!cometSupport.supportWebSocket()) {
                     res.addHeader("X-Atmosphere-error","Websocket protocol not supported");
-                } else {
-                    flushComment = false;
                 }
             }
 
-            // Set to expire far in the past.
-            res.setHeader("Expires", "-1");
-            // Set standard HTTP/1.1 no-cache headers.
-            res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
-            // Set standard HTTP/1.0 no-cache header.
-            res.setHeader("Pragma", "no-cache");
-
-            if (flushComment) {
-                write();
+            if (!cometSupport.supportWebSocket()) {
+                // Set to expire far in the past.
+                res.setHeader("Expires", "-1");
+                // Set standard HTTP/1.1 no-cache headers.
+                res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+                // Set standard HTTP/1.0 no-cache header.
+                res.setHeader("Pragma", "no-cache");
+    
+                if (flushComment) {
+                    write();
+                }
             }
             req.setAttribute(PRE_SUSPEND, "true");
             action.type = AtmosphereServlet.Action.TYPE.SUSPEND;

@@ -44,6 +44,7 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 
@@ -87,7 +88,13 @@ public class WebSocketProcessor implements Serializable {
     }
 
     public void broadcast(byte frame, String data) {
-        r.getBroadcaster().broadcast(data);
+        try {
+            r.getBroadcaster().broadcast(data).get();
+        } catch (InterruptedException e) {
+            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+        } catch (ExecutionException e) {
+            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+        }
     }
 
     public void broadcast(byte frame, byte[] data, int offset, int length) {

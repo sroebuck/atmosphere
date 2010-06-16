@@ -46,6 +46,7 @@ import org.atmosphere.container.JBossWebCometSupport;
 import org.atmosphere.container.Jetty7CometSupport;
 import org.atmosphere.container.Jetty8WebSocketSupport;
 import org.atmosphere.container.JettyCometSupport;
+import org.atmosphere.container.ResinWebSocketSupport;
 import org.atmosphere.container.Servlet30Support;
 import org.atmosphere.container.TomcatCometSupport;
 import org.atmosphere.container.WebLogicCometSupport;
@@ -75,6 +76,7 @@ public class DefaultCometSupportResolver implements CometSupportResolver {
     public final static String JBOSSWEB = "org.apache.catalina.connector.HttpEventImpl";
     public final static Logger logger = LoggerUtils.getLogger();
     public final static String GRIZZLY_WEBSOCKET = "com.sun.grizzly.websockets.WebSocketEngine";
+    public final static String RESIN_WEBSOCKET = "com.caucho.servlet.WebSocketServletRequest";
 
     private final AtmosphereConfig config;
 
@@ -142,6 +144,8 @@ public class DefaultCometSupportResolver implements CometSupportResolver {
                 if (testClassExists(GRIZZLY_WEBSOCKET))
                     add(GlassFishWebSocketSupport.class);
 
+                if (testClassExists(RESIN_WEBSOCKET))
+                    add(ResinWebSocketSupport.class);
             }
         };
 
